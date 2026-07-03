@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Clock, Building2, ArrowLeft } from "lucide-react";
 import { getJob, getJobs } from "@/lib/api";
+import ApplyButton from "@/components/ApplyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -81,9 +82,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
         <aside className="space-y-6">
           <div className="rounded-2xl border border-border bg-white p-6">
-            <button className="w-full rounded-full bg-brandGreen text-white text-sm font-semibold py-3 hover:bg-darkGreen transition-colors">
-              Apply Now
-            </button>
+            <ApplyButton jobId={job.id} />
             <button className="w-full rounded-full border border-border text-ink text-sm font-semibold py-3 mt-2 hover:bg-pageBg transition-colors">
               Save Job
             </button>
