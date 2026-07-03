@@ -26,6 +26,11 @@ type AuthContextValue = {
   signUp: (payload: RegisterPayload) => Promise<AuthSession>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<AuthSession | null>;
+  /** Role-based convenience checks */
+  isEmployer: boolean;
+  isFreelancer: boolean;
+  isJobSeeker: boolean;
+  isAdmin: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -110,6 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const role = session?.user?.role;
+
   const value: AuthContextValue = {
     status,
     user: session?.user ?? null,
@@ -118,6 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     refreshSession,
+    isEmployer: role === "EMPLOYER",
+    isFreelancer: role === "FREELANCER",
+    isJobSeeker: role === "JOB_SEEKER",
+    isAdmin: role === "ADMIN",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

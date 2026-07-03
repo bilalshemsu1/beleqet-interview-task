@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { verifyEmail } from "@/lib/auth";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -45,5 +45,13 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="container-page py-14 max-w-xl"><div className="rounded-3xl border border-border bg-white p-8 text-muted">Loading…</div></div>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

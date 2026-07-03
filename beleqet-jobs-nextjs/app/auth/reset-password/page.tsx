@@ -1,11 +1,11 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
 import Link from "next/link";
 import { resetPassword } from "@/lib/auth";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [newPassword, setNewPassword] = useState("");
@@ -88,5 +88,13 @@ export default function ResetPasswordPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="container-page py-14 max-w-xl"><div className="rounded-3xl border border-border bg-white p-8 text-muted">Loading…</div></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

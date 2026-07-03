@@ -41,7 +41,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"JOB_SEEKER" | "EMPLOYER">("JOB_SEEKER");
+  const [role, setRole] = useState<"JOB_SEEKER" | "EMPLOYER" | "FREELANCER">("JOB_SEEKER");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,11 +130,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
               <label className="text-xs font-semibold text-ink">Account Type</label>
               <select
                 value={role}
-                onChange={(event) => setRole(event.target.value as "JOB_SEEKER" | "EMPLOYER")}
+                onChange={(event) => setRole(event.target.value as "JOB_SEEKER" | "EMPLOYER" | "FREELANCER")}
                 className="mt-1.5 w-full rounded-lg border border-border px-3 py-2.5 text-sm outline-none focus:border-brandGreen bg-white"
               >
                 <option value="JOB_SEEKER">Job Seeker</option>
                 <option value="EMPLOYER">Employer</option>
+                <option value="FREELANCER">Freelancer</option>
               </select>
             </div>
           )}

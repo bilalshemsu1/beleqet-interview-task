@@ -6,6 +6,9 @@ import { useAuth } from "@/components/AuthProvider";
 
 const navItems = [
   { label: "Find Jobs", href: "/jobs" },
+  { label: "Freelance", href: "/freelance" },
+  { label: "Post Gig", href: "/freelance/post" },
+  { label: "My Bids", href: "/freelance/my-bids" },
   { label: "About Us", href: "/about" },
   { label: "CV Maker", href: "/cv-maker" },
   { label: "Pricing", href: "/pricing" },

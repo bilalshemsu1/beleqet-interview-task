@@ -105,3 +105,90 @@ export async function getJobCategories() {
     next: { revalidate: 300 },
   });
 }
+
+export type FreelanceCategory = {
+  id: string;
+  slug: string;
+  label: string;
+  icon?: string | null;
+};
+
+export type FreelanceClient = {
+  id: string;
+  firstName: string;
+  lastName: string;
+};
+
+export type FreelanceFreelancer = {
+  id: string;
+  firstName: string;
+  lastName: string;
+};
+
+export type FreelanceBid = {
+  id: string;
+  amount: number;
+  timelineDays: number;
+  coverLetter: string;
+  status: string;
+  createdAt: string;
+  freelancer: FreelanceFreelancer;
+};
+
+export type FreelanceJobListItem = {
+  id: string;
+  title: string;
+  description: string;
+  categoryId: string;
+  clientId: string;
+  budgetMin: number;
+  budgetMax: number;
+  currency: string;
+  pricingType: string;
+  deadlineDays: number;
+  skills: string[];
+  status: string;
+  featured: boolean;
+  createdAt: string;
+  updatedAt: string;
+  attachments: string[];
+  experienceLevel?: string | null;
+  locationPreference?: string | null;
+  category: FreelanceCategory;
+  client: FreelanceClient;
+  _count?: {
+    bids: number;
+  };
+};
+
+export type FreelanceJobDetail = FreelanceJobListItem & {
+  bids: FreelanceBid[];
+};
+
+export async function getFreelanceJobs(params: {
+  q?: string;
+  category?: string;
+  page?: number;
+  limit?: number;
+} = {}) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  });
+
+  const query = searchParams.toString();
+  return fetchJson<ApiListResponse<FreelanceJobListItem>>(`/freelance/jobs${query ? `?${query}` : ""}`, {
+    next: { revalidate: 60 },
+  });
+}
+
+export async function getFreelanceJob(id: string) {
+  return fetchJson<FreelanceJobDetail>(`/freelance/jobs/${id}`, {
+    next: { revalidate: 60 },
+  });
+}
+
+
