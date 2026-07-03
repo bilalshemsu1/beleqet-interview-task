@@ -1,15 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { getMyBids, type MyBid } from "@/lib/freelance";
 
 export default function MyBidsPage() {
-  const { status, session } = useAuth();
+  const router = useRouter();
+  const { status, session, user } = useAuth();
   const [bids, setBids] = useState<MyBid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect non-freelancers
+  useEffect(() => {
+    if (status === "anonymous") router.push("/login");
+    if (user && user.role !== "FREELANCER") router.push("/freelance");
+  }, [status, user, router]);
 
   useEffect(() => {
     void (async () => {

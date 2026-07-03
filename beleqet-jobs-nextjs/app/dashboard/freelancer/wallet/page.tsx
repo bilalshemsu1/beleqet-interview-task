@@ -10,6 +10,7 @@ import {
   CheckCircle,
   CreditCard,
   TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 
 type WalletData = {
@@ -44,6 +45,7 @@ export default function FreelancerWalletPage() {
   const [accountRef, setAccountRef] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadWallet();
@@ -59,10 +61,16 @@ export default function FreelancerWalletPage() {
   }
 
   async function handleWithdraw() {
-    const amount = parseInt(withdrawAmount, 10);
+    const amount = parseFloat(withdrawAmount);
     if (!amount || amount <= 0 || !accountRef) return;
 
+    if (amount > available) {
+      setWithdrawError(`Insufficient balance. You can withdraw up to ${available.toLocaleString()} ${currency}.`);
+      return;
+    }
+
     setWithdrawing(true);
+    setWithdrawError(null);
     try {
       await apiPost("/wallet/withdraw", {
         amount,
@@ -73,11 +81,10 @@ export default function FreelancerWalletPage() {
       setShowWithdraw(false);
       setWithdrawAmount("");
       setAccountRef("");
-      // Reload wallet
       await loadWallet();
       setTimeout(() => setWithdrawSuccess(false), 5000);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Withdrawal failed");
+      setWithdrawError(err instanceof Error ? err.message : "Withdrawal failed");
     } finally {
       setWithdrawing(false);
     }
@@ -107,6 +114,14 @@ export default function FreelancerWalletPage() {
         <div className="flex items-center gap-2 rounded-lg bg-success/10 px-4 py-2.5 text-sm text-success">
           <CheckCircle className="h-4 w-4" />
           Withdrawal submitted successfully. Processing takes 1-2 business days.
+        </div>
+      )}
+
+      {/* Withdraw error */}
+      {withdrawError && (
+        <div className="flex items-center gap-2 rounded-lg bg-redAccent/10 px-4 py-2.5 text-sm text-redAccent">
+          <AlertCircle className="h-4 w-4" />
+          {withdrawError}
         </div>
       )}
 
@@ -158,7 +173,7 @@ export default function FreelancerWalletPage() {
       {/* Withdraw button */}
       <div className="flex justify-end">
         <button
-          onClick={() => setShowWithdraw(!showWithdraw)}
+          onClick={() => { setShowWithdraw(!showWithdraw); setWithdrawError(null); }}
           disabled={available <= 0}
           className="inline-flex items-center gap-2 rounded-lg bg-brandGreen px-5 py-2.5 text-sm font-semibold text-white hover:bg-darkGreen transition-colors disabled:opacity-50"
         >

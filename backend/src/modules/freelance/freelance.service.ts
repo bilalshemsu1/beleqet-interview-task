@@ -1,19 +1,102 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsArray, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateFreelanceJobDto {
-  title: string; description: string; categoryId: string;
-  budgetMin: number; budgetMax: number; pricingType?: string;
-  deadlineDays: number; skills: string[];
-  
-  // New Freelance fields
+  @ApiProperty()
+  @IsString()
+  title: string;
+
+  @ApiProperty()
+  @IsString()
+  description: string;
+
+  @ApiProperty()
+  @IsString()
+  categoryId: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  budgetMin: number;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  budgetMax: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  pricingType?: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  deadlineDays: number;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  skills: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   locationPreference?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   experienceLevel?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   attachments?: string[];
 }
 export class CreateBidDto {
-  amount: number; timelineDays: number; coverLetter: string;
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  amount: number;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  timelineDays: number;
+
+  @ApiProperty()
+  @IsString()
+  coverLetter: string;
+}
+
+export class SubmitDeliverableDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class CreateDisputeDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(20, { message: 'Reason must be at least 20 characters' })
+  reason: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  evidenceUrls?: string[];
 }
 
 @Injectable()
@@ -144,6 +227,10 @@ export class FreelanceService {
     return c;
   }
 
+  async findCategories() {
+    return this.prisma.freelanceCategory.findMany({ orderBy: { label: 'asc' } });
+  }
+
   async approveMilestone(milestoneId: string, clientId: string) {
     const m = await this.prisma.milestone.findFirst({
       where: { id: milestoneId, contract: { clientId } },
@@ -152,6 +239,42 @@ export class FreelanceService {
     return this.prisma.milestone.update({
       where: { id: milestoneId },
       data: { status: 'APPROVED', approvedAt: new Date() },
+    });
+  }
+
+  async submitDeliverable(milestoneId: string, freelancerId: string, dto: SubmitDeliverableDto) {
+    const m = await this.prisma.milestone.findFirst({
+      where: { id: milestoneId, contract: { freelancerId } },
+      include: { contract: true },
+    });
+    if (!m) throw new NotFoundException('Milestone not found or not authorized');
+    if (m.status !== 'IN_PROGRESS' && m.status !== 'SUBMITTED' && m.status !== 'REVISION_REQUESTED') {
+      throw new BadRequestException('Milestone is not in a submittable state');
+    }
+
+    const deliverable = await this.prisma.deliverable.create({
+      data: { milestoneId, fileUrl: dto.fileUrl, notes: dto.notes },
+    });
+
+    await this.prisma.milestone.update({
+      where: { id: milestoneId },
+      data: { status: 'SUBMITTED' },
+    });
+
+    return deliverable;
+  }
+
+  async createDispute(contractId: string, userId: string, dto: CreateDisputeDto) {
+    const contract = await this.prisma.contract.findFirst({
+      where: { id: contractId, OR: [{ clientId: userId }, { freelancerId: userId }] },
+    });
+    if (!contract) throw new NotFoundException('Contract not found or not authorized');
+
+    const existing = await this.prisma.dispute.findUnique({ where: { contractId } });
+    if (existing) throw new ConflictException('A dispute already exists for this contract');
+
+    return this.prisma.dispute.create({
+      data: { contractId, raisedById: userId, reason: dto.reason, evidenceUrls: dto.evidenceUrls ?? [] },
     });
   }
 }

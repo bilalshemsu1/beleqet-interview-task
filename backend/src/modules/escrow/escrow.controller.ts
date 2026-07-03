@@ -2,6 +2,8 @@
 import { Controller, Post, Body, Param, UseGuards, HttpCode, HttpStatus, Req, Headers, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { EscrowService } from './escrow.service';
 import { ConfigService } from '@nestjs/config';
@@ -17,7 +19,7 @@ export class EscrowController {
   ) {}
 
   @Post('initiate/:gigId')
-  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles('EMPLOYER', 'ADMIN') @ApiBearerAuth()
   initiate(@Param('gigId') gigId: string, @CurrentUser() u: CurrentUserPayload) {
     return this.svc.initiate(u.userId, gigId);
   }
@@ -53,7 +55,7 @@ export class EscrowController {
   }
 
   @Post('milestones/:id/release')
-  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles('EMPLOYER', 'ADMIN') @ApiBearerAuth()
   release(@Param('id') id: string, @CurrentUser() u: CurrentUserPayload) {
     return this.svc.releaseMilestone(id, u.userId);
   }

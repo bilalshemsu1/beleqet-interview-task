@@ -7,7 +7,7 @@ import { createFreelanceJob, getFreelanceCategories, type FreelanceCategory } fr
 
 export default function PostFreelanceJobPage() {
   const router = useRouter();
-  const { status, session } = useAuth();
+  const { status, session, user } = useAuth();
   const [categories, setCategories] = useState<FreelanceCategory[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -32,6 +32,12 @@ export default function PostFreelanceJobPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load categories."));
   }, []);
 
+  // Redirect non-employers
+  useEffect(() => {
+    if (status === "anonymous") router.push("/login");
+    if (user && user.role !== "EMPLOYER" && user.role !== "ADMIN") router.push("/freelance");
+  }, [status, user, router]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -40,6 +46,14 @@ export default function PostFreelanceJobPage() {
 
     if (!session || status !== "authenticated") {
       setError("Please log in to post a freelance gig.");
+      setLoading(false);
+      return;
+    }
+
+    const minBudget = Number(budgetMin);
+    const maxBudget = Number(budgetMax);
+    if (minBudget > maxBudget) {
+      setError("Minimum budget cannot be greater than maximum budget.");
       setLoading(false);
       return;
     }

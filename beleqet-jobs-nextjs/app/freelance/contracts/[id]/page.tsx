@@ -23,9 +23,8 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  // Deliverable form state
-  const [deliverableFileUrl, setDeliverableFileUrl] = useState("");
-  const [deliverableNotes, setDeliverableNotes] = useState("");
+  // Per-milestone deliverable form state
+  const [deliverableForms, setDeliverableForms] = useState<Record<string, { fileUrl: string; notes: string }>>({});
   const [submittingDeliverable, setSubmittingDeliverable] = useState<string | null>(null);
 
   // Dispute form state
@@ -40,7 +39,6 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
         setLoading(false);
         return;
       }
-
       try {
         const response = await getContract(session, params.id);
         setContract(response);
@@ -52,8 +50,17 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
     })();
   }, [params.id, session, status]);
 
+  function updateDeliverableForm(milestoneId: string, field: "fileUrl" | "notes", value: string) {
+    setDeliverableForms((prev) => ({
+      ...prev,
+      [milestoneId]: { ...prev[milestoneId], fileUrl: "", notes: "", [field]: value },
+    }));
+  }
+
   async function handleApprove(milestoneId: string) {
     if (!session) return;
+    setError(null);
+    setActionMessage(null);
     try {
       const response = await approveMilestone(session, milestoneId);
       setActionMessage(`Milestone ${response.status.toLowerCase()} successfully.`);
@@ -66,15 +73,17 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
 
   async function handleSubmitDeliverable(milestoneId: string) {
     if (!session) return;
+    const form = deliverableForms[milestoneId];
     setSubmittingDeliverable(milestoneId);
+    setError(null);
+    setActionMessage(null);
     try {
       await submitDeliverable(session, milestoneId, {
-        fileUrl: deliverableFileUrl || undefined,
-        notes: deliverableNotes || undefined,
+        fileUrl: form?.fileUrl || undefined,
+        notes: form?.notes || undefined,
       });
       setActionMessage("Deliverable submitted successfully.");
-      setDeliverableFileUrl("");
-      setDeliverableNotes("");
+      setDeliverableForms((prev) => ({ ...prev, [milestoneId]: { fileUrl: "", notes: "" } }));
       const refreshed = await getContract(session, params.id);
       setContract(refreshed);
     } catch (err) {
@@ -87,6 +96,8 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
   async function handleCreateDispute() {
     if (!session || !contract) return;
     setSubmittingDispute(true);
+    setError(null);
+    setActionMessage(null);
     try {
       await createDispute(session, contract.id, {
         reason: disputeReason,
@@ -119,11 +130,24 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
       </div>
 
       {loading ? (
-        <div className="mt-8 rounded-2xl border border-border bg-white p-8 text-muted">Loading contract...</div>
-      ) : error ? (
-        <div className="mt-8 rounded-2xl border border-border bg-white p-8 text-redAccent">{error}</div>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brandGreen border-t-transparent" />
+        </div>
+      ) : error && !contract ? (
+        <div className="mt-8 rounded-2xl border border-border bg-white p-8 text-center">
+          <p className="text-redAccent font-medium">{error}</p>
+          <Link href="/dashboard/freelancer/contracts" className="mt-3 inline-block text-sm text-brandGreen hover:underline">Back to contracts</Link>
+        </div>
       ) : contract ? (
         <div className="mt-8 space-y-6">
+          {/* Status messages */}
+          {actionMessage && (
+            <div className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success font-medium">{actionMessage}</div>
+          )}
+          {error && (
+            <div className="rounded-lg bg-redAccent/10 px-4 py-3 text-sm text-redAccent font-medium">{error}</div>
+          )}
+
           {/* Contract summary */}
           <div className="rounded-2xl border border-border bg-white p-6">
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -137,10 +161,8 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
               <span className="rounded-full bg-brandGreen/10 text-brandGreen font-semibold px-3 py-1 text-sm">{contract.status}</span>
             </div>
 
-            {actionMessage && <p className="mt-4 text-sm text-brandGreen font-medium">{actionMessage}</p>}
-
             {isClient && (
-              <div className="mt-4 flex gap-3">
+              <div className="mt-4">
                 <Link
                   href={`/freelance/escrow/${contract.freelanceJobId}`}
                   className="inline-flex items-center gap-2 rounded-full border border-brandGreen px-4 py-2 text-sm font-semibold text-brandGreen hover:bg-brandGreen hover:text-white transition-colors"
@@ -160,7 +182,7 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
                     <h4 className="text-lg font-semibold text-ink">{milestone.title}</h4>
-                    <p className="text-sm text-muted mt-2">{milestone.description}</p>
+                    {milestone.description && <p className="text-sm text-muted mt-2">{milestone.description}</p>}
                   </div>
                   <span className="rounded-full bg-pageBg text-ink font-semibold px-3 py-1 text-sm">{milestone.status}</span>
                 </div>
@@ -198,49 +220,48 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
                   </div>
                 )}
 
-                {/* Actions */}
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {/* Client: approve */}
-                  {isClient && milestone.status !== "APPROVED" && milestone.status === "SUBMITTED" && (
+                {/* Freelancer: submit deliverable */}
+                {isFreelancer && (milestone.status === "IN_PROGRESS" || milestone.status === "REVISION_REQUESTED") && (
+                  <div className="mt-4 p-4 rounded-xl bg-pageBg border border-border">
+                    <p className="text-sm font-semibold text-ink mb-3">Submit Deliverable</p>
+                    <div className="space-y-3">
+                      <input
+                        type="url"
+                        value={deliverableForms[milestone.id]?.fileUrl ?? ""}
+                        onChange={(e) => updateDeliverableForm(milestone.id, "fileUrl", e.target.value)}
+                        placeholder="File URL (Google Drive, Dropbox, etc.)"
+                        className="w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm outline-none focus:border-brandGreen"
+                      />
+                      <textarea
+                        value={deliverableForms[milestone.id]?.notes ?? ""}
+                        onChange={(e) => updateDeliverableForm(milestone.id, "notes", e.target.value)}
+                        placeholder="Notes about this deliverable..."
+                        rows={3}
+                        className="w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm outline-none focus:border-brandGreen resize-none"
+                      />
+                      <button
+                        onClick={() => void handleSubmitDeliverable(milestone.id)}
+                        disabled={submittingDeliverable === milestone.id}
+                        className="inline-flex items-center gap-2 rounded-full bg-brandGreen px-4 py-2 text-sm font-semibold text-white hover:bg-darkGreen transition-colors disabled:opacity-60"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {submittingDeliverable === milestone.id ? "Submitting..." : "Submit Deliverable"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Client: approve */}
+                {isClient && milestone.status === "SUBMITTED" && (
+                  <div className="mt-4">
                     <button
                       onClick={() => void handleApprove(milestone.id)}
                       className="inline-flex items-center rounded-full bg-brandGreen px-4 py-2 text-sm font-semibold text-white hover:bg-darkGreen transition-colors"
                     >
                       Approve Milestone
                     </button>
-                  )}
-
-                  {/* Freelancer: submit deliverable */}
-                  {isFreelancer && (milestone.status === "IN_PROGRESS" || milestone.status === "REVISION_REQUESTED") && (
-                    <div className="w-full mt-3 p-4 rounded-xl bg-pageBg border border-border">
-                      <p className="text-sm font-semibold text-ink mb-3">Submit Deliverable</p>
-                      <div className="space-y-3">
-                        <input
-                          type="url"
-                          value={deliverableFileUrl}
-                          onChange={(e) => setDeliverableFileUrl(e.target.value)}
-                          placeholder="File URL (Google Drive, Dropbox, etc.)"
-                          className="w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm outline-none focus:border-brandGreen"
-                        />
-                        <textarea
-                          value={deliverableNotes}
-                          onChange={(e) => setDeliverableNotes(e.target.value)}
-                          placeholder="Notes about this deliverable..."
-                          rows={3}
-                          className="w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm outline-none focus:border-brandGreen resize-none"
-                        />
-                        <button
-                          onClick={() => void handleSubmitDeliverable(milestone.id)}
-                          disabled={submittingDeliverable === milestone.id}
-                          className="inline-flex items-center gap-2 rounded-full bg-brandGreen px-4 py-2 text-sm font-semibold text-white hover:bg-darkGreen transition-colors disabled:opacity-60"
-                        >
-                          <Upload className="h-4 w-4" />
-                          {submittingDeliverable === milestone.id ? "Submitting..." : "Submit Deliverable"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -262,13 +283,16 @@ export default function ContractDetailPage({ params }: { params: { id: string } 
 
             {showDisputeForm && (
               <div className="mt-4 space-y-4">
-                <textarea
-                  value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
-                  placeholder="Describe the issue in detail (minimum 20 characters)..."
-                  rows={4}
-                  className="w-full rounded-lg border border-border px-4 py-2.5 text-sm outline-none focus:border-brandGreen resize-none"
-                />
+                <div>
+                  <textarea
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                    placeholder="Describe the issue in detail..."
+                    rows={4}
+                    className="w-full rounded-lg border border-border px-4 py-2.5 text-sm outline-none focus:border-brandGreen resize-none"
+                  />
+                  <p className="text-xs text-muted mt-1">{disputeReason.length}/20 characters minimum</p>
+                </div>
                 <input
                   type="text"
                   value={disputeEvidence}

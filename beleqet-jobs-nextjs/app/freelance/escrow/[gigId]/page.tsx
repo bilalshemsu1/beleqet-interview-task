@@ -28,6 +28,12 @@ type EscrowResult = {
 export default function EscrowPage({ params }: { params: { gigId: string } }) {
   const router = useRouter();
   const { status, session, user } = useAuth();
+
+  // Redirect non-employers
+  useEffect(() => {
+    if (status === "anonymous") router.push("/login");
+    if (user && user.role !== "EMPLOYER" && user.role !== "ADMIN") router.push("/freelance");
+  }, [status, user, router]);
   const [gig, setGig] = useState<GigInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [initiating, setInitiating] = useState(false);

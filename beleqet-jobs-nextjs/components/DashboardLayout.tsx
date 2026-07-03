@@ -10,7 +10,6 @@ import {
   FileText,
   Users,
   Wallet,
-  MessageSquare,
   Bell,
   Settings,
   LogOut,
@@ -104,6 +103,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/login");
     }
   }, [status, router, pathname]);
+
+  // Redirect to own dashboard if accessing wrong role's dashboard
+  useEffect(() => {
+    if (status !== "authenticated" || !user) return;
+    const roleMap: Record<string, string> = {
+      EMPLOYER: "/dashboard/employer",
+      FREELANCER: "/dashboard/freelancer",
+      JOB_SEEKER: "/dashboard/seeker",
+      ADMIN: "/dashboard/admin",
+    };
+    const correctHome = roleMap[user.role];
+    if (!correctHome) return;
+    if (!pathname.startsWith(correctHome)) {
+      router.push(correctHome);
+    }
+  }, [status, user, router, pathname]);
 
   if (status === "loading") {
     return (

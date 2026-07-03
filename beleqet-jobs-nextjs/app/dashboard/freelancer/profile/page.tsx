@@ -37,6 +37,7 @@ export default function FreelancerProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -87,6 +88,13 @@ export default function FreelancerProfilePage() {
   async function handleSave() {
     setSaving(true);
     setSaved(false);
+    setSaveError(null);
+
+    if (!firstName.trim() || !lastName.trim()) {
+      setSaveError("First name and last name are required.");
+      setSaving(false);
+      return;
+    }
     try {
       await apiPatch("/users/profile", {
         firstName,
@@ -104,7 +112,7 @@ export default function FreelancerProfilePage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save profile");
+      setSaveError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
       setSaving(false);
     }
@@ -131,6 +139,12 @@ export default function FreelancerProfilePage() {
         <div className="flex items-center gap-2 rounded-lg bg-success/10 px-4 py-2.5 text-sm text-success">
           <CheckCircle className="h-4 w-4" />
           Profile updated successfully.
+        </div>
+      )}
+
+      {saveError && (
+        <div className="flex items-center gap-2 rounded-lg bg-redAccent/10 px-4 py-2.5 text-sm text-redAccent">
+          {saveError}
         </div>
       )}
 

@@ -3,21 +3,63 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { LayoutDashboard } from "lucide-react";
 
-const navItems = [
+type NavEntry = {
+  label: string;
+  href: string;
+  /** If set, the link only shows for these roles. Omit = show for everyone. */
+  roles?: string[];
+};
+
+const navItems: NavEntry[] = [
   { label: "Find Jobs", href: "/jobs" },
   { label: "Freelance", href: "/freelance" },
-  { label: "Post Gig", href: "/freelance/post" },
-  { label: "My Bids", href: "/freelance/my-bids" },
+  { label: "Post Gig", href: "/freelance/post", roles: ["EMPLOYER", "ADMIN"] },
+  { label: "My Bids", href: "/freelance/my-bids", roles: ["FREELANCER"] },
   { label: "About Us", href: "/about" },
   { label: "CV Maker", href: "/cv-maker" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
 ];
 
+function getProfileHref(role: string): string {
+  switch (role) {
+    case "EMPLOYER":
+      return "/dashboard/employer/profile";
+    case "FREELANCER":
+      return "/dashboard/freelancer/profile";
+    case "JOB_SEEKER":
+      return "/dashboard/seeker/profile";
+    case "ADMIN":
+      return "/dashboard/admin";
+    default:
+      return "/dashboard/freelancer/profile";
+  }
+}
+
+function getDashboardHref(role: string): string {
+  switch (role) {
+    case "EMPLOYER":
+      return "/dashboard/employer";
+    case "FREELANCER":
+      return "/dashboard/freelancer";
+    case "JOB_SEEKER":
+      return "/dashboard/seeker";
+    case "ADMIN":
+      return "/dashboard/admin";
+    default:
+      return "/";
+  }
+}
+
 export default function Header() {
   const router = useRouter();
   const { status, user, signOut } = useAuth();
+
+  const visibleNav = navItems.filter(
+    (item) => !item.roles || (user && item.roles.includes(user.role)),
+  );
 
   async function handleLogout() {
     await signOut();
@@ -37,7 +79,7 @@ export default function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-ink">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <Link key={item.href} href={item.href} className="hover:text-brandGreen transition-colors">
               {item.label}
             </Link>
@@ -47,9 +89,21 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {status === "authenticated" && user ? (
             <>
-              <div className="hidden sm:flex flex-col items-end leading-tight">
-                <span className="text-sm font-semibold text-ink">{user.firstName}</span>
-              </div>
+              <Link
+                href={getProfileHref(user.role)}
+                className="hidden sm:block text-sm font-semibold text-ink hover:text-brandGreen transition-colors"
+              >
+                {user.firstName}
+              </Link>
+
+              <Link
+                href={getDashboardHref(user.role)}
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-ink hover:border-brandGreen hover:text-brandGreen transition-colors"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                Dashboard
+              </Link>
+
               <button
                 onClick={handleLogout}
                 className="inline-flex items-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-ink hover:border-brandGreen hover:text-brandGreen transition-colors"
@@ -66,12 +120,14 @@ export default function Header() {
             </Link>
           )}
 
-          <Link
-            href="/post-job"
-            className="inline-flex items-center rounded-full bg-brandGreen px-4 py-2 text-sm font-semibold text-white hover:bg-darkGreen transition-colors"
-          >
-            Post a Job
-          </Link>
+          {(user?.role === "EMPLOYER" || user?.role === "ADMIN" || !user) && (
+            <Link
+              href="/post-job"
+              className="inline-flex items-center rounded-full bg-brandGreen px-4 py-2 text-sm font-semibold text-white hover:bg-darkGreen transition-colors"
+            >
+              Post a Job
+            </Link>
+          )}
         </div>
       </div>
     </header>
